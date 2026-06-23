@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "onthefly-distill: on-the-fly MLIP distillation to a CPU NN-MTP student"
+authors:
+  - family-names: Moon
+    given-names: Jinuk
+version: 0.1.0
+license: GPL-2.0-only
+abstract: >
+  A self-contained framework to distill any teacher machine-learning interatomic
+  potential (MLIP) into a CPU-deployable LAMMPS NN-MTP student via an
+  active-learning loop (teacher MD -> train student -> student LAMMPS MD ->
+  relabel pre-crash frames -> retrain).
+references:
+  - type: software
+    title: "LAMMPS Molecular Dynamics Simulator"
+    notes: >
+      The NN-MTP pair style (lammps/src/pair_nnmtp*) is derived from LAMMPS
+      (Sandia National Laboratories), distributed under GPL-2.0.
+    url: "https://www.lammps.org"

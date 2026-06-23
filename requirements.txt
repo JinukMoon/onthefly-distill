@@ -1,0 +1,6 @@
+ase>=3.22.1
+torch
+numpy
+pyyaml          # config.py loads config.yaml
+# optional teacher example (UMA / FAIRChem):
+# fairchem-core

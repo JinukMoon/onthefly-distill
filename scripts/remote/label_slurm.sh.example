@@ -1,0 +1,27 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+#SBATCH --partition=gpu            # set to your cluster's GPU partition
+##
+#SBATCH --job-name=label
+#SBATCH --time=20-00:00
+#SBATCH -o label.%N.%j.out
+#SBATCH -e label.%N.%j.err
+#
+#SBATCH --gres=gpu:1              # set to your cluster's GPU gres (e.g. gpu:a5000:1)
+##
+# OPTIONAL remote-labeling SLURM template. Used by scripts/al_loop_remote.sh.
+# Copy to label_slurm.sh, fill in the partition / gres / conda env below, and make
+# sure config.yaml is present in the submit dir (it is rsynced alongside this file).
+#
+# IN / OUT are passed via the LABEL_IN / LABEL_OUT environment variables.
+hostname; date
+module purge
+export PYTHONUNBUFFERED=1
+source ~/.bashrc
+cd "$SLURM_SUBMIT_DIR"
+# Activate the conda env that has your teacher MLIP (e.g. fairchem-core for UMA):
+conda activate teacher_env
+# label.py reads the teacher from config.yaml and writes E/F + a .DONE marker.
+python -u label.py "${LABEL_IN:-to_label.xyz}" "${LABEL_OUT:-labeled.extxyz}"
+conda deactivate

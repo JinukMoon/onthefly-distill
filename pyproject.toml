@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ontheflydistill"
+version = "0.1.0"
+description = "On-the-fly MLIP distillation to a CPU-deployable LAMMPS NN-MTP student"
+requires-python = ">=3.10"
+dependencies = ["ase>=3.22.1", "torch", "numpy", "pyyaml"]
+license = { text = "GPL-2.0-only" }
+
+[tool.setuptools.packages.find]
+include = ["ontheflydistill*"]

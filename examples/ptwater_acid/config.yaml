@@ -1,0 +1,55 @@
+# Pt(111)-water acid HER interface — on-the-fly distillation example config.
+#
+# One teacher (UMA uma-s-1p2 / oc25) is consumed by BOTH the teacher MD and the
+# labeling step, so the teacher trajectory and the AL labels live on the SAME
+# potential-energy surface (mismatched surfaces corrupt training).
+#
+# Copy this file (and the .vasp) into a working directory, build LAMMPS per
+# lammps/BUILD.md, set lmp_bin, then run:
+#   ONTHEFLY_CONFIG=config.yaml bash <repo>/scripts/al_loop_local.sh
+
+lmp_bin: /path/to/lammps/build/lmp        # REQUIRED (or export LMP_BIN)
+python_bin: python
+work_dir: ./run
+
+system:
+  init_structure: ptwater_acid_init_clean.vasp
+  species: [1, 8, 78]                      # H, O, Pt (atomic numbers)
+  specorder: [H, O, Pt]                    # MUST match pair_coeff element order
+  masses: [1.008, 15.999, 195.084]
+  fixed_bottom_n: 32                       # frozen bottom-slab Pt atoms (0 to disable)
+  force_pbc: true                          # force atoms.pbc=True before labeling
+                                           # (slab 'p p f' dumps are mixed-PBC; UMA rejects mixed)
+
+teacher:
+  type: uma                                # ase_calculator | uma | extxyz
+  model: uma-s-1p2                         # consumed by teacher_md.py AND label.py
+  task: oc25                               # MUST be identical for MD and labeling
+  device: cuda
+
+student:
+  n_radial_basis: 12
+  n_radial_funcs: 8
+  r_max: 6.0
+  hidden_dims: [64, 32]
+  embed_dim: 16
+  activation: silu
+  zbl: true
+  zbl_r_inner: 0.5
+  zbl_r_outer: 3.0
+  nu_max: 2
+  epochs: 300
+
+al_loop:
+  target_ps: 500                           # small demo target (ps); raise for production
+  no_progress_limit: 4
+  max_iter: 30
+  seed: 42
+  omp_threads: 8
+
+remote:
+  enabled: false
+  host: myserver
+  base: /remote/path
+  slurm_partition: gpu
+  slurm_gres: "gpu:1"

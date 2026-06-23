@@ -1,0 +1,12 @@
+name: onthefly-distill
+channels: [conda-forge, pytorch]
+dependencies:
+  - python>=3.10
+  - numpy
+  - pytorch
+  - ase>=3.22.1
+  - pyyaml
+  - pip
+  - pip:
+      - -e .
+      # fairchem-core   # uncomment if using the UMA teacher example

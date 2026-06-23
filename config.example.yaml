@@ -1,0 +1,52 @@
+# onthefly-distill configuration template.
+# Copy to config.yaml and edit. The loop scripts read config.yaml (or the file
+# pointed to by $ONTHEFLY_CONFIG). All values fall back to the Pt-water defaults
+# if omitted.
+
+lmp_bin: /path/to/lammps/build/lmp        # REQUIRED (or export LMP_BIN)
+python_bin: python                         # interpreter for sub-steps
+work_dir: ./run                            # AL working directory
+
+system:
+  init_structure: examples/ptwater_acid/ptwater_acid_init_clean.vasp
+  species: [1, 8, 78]                      # atomic numbers (max 4 species)
+  specorder: [H, O, Pt]                    # MUST match pair_coeff element order
+  masses: [1.008, 15.999, 195.084]
+  fixed_bottom_n: 32                       # frozen bottom-slab atoms (0 to disable)
+  force_pbc: true                          # force atoms.pbc=True before labeling
+                                           # (slab 'p p f' dumps are mixed-PBC; UMA rejects mixed)
+
+teacher:
+  type: ase_calculator                     # ase_calculator | uma | extxyz
+  calculator: "mypkg:make_calc"            # ase_calculator: import-path callable -> ASE Calculator
+  # model: uma-s-1p2                        # uma: consumed by teacher_md.py AND label.py
+  # task: oc25                              # uma: MUST be identical for MD and labeling
+  # device: cuda                            # uma
+  # dataset: data/labeled.extxyz           # extxyz: static one-shot distillation (AL disabled)
+
+student:
+  n_radial_basis: 12
+  n_radial_funcs: 8
+  r_max: 6.0
+  hidden_dims: [64, 32]
+  embed_dim: 16
+  activation: silu
+  zbl: true
+  zbl_r_inner: 0.5
+  zbl_r_outer: 3.0
+  nu_max: 2
+  epochs: 300
+
+al_loop:
+  target_ps: 100000                        # student MD stability target (ps)
+  no_progress_limit: 4
+  max_iter: 30
+  seed: 42
+  omp_threads: 8
+
+remote:                                     # OPTIONAL (scripts/al_loop_remote.sh)
+  enabled: false
+  host: myserver
+  base: /remote/path
+  slurm_partition: gpu
+  slurm_gres: "gpu:1"
