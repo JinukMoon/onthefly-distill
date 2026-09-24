@@ -169,6 +169,7 @@ All keys live in `config.yaml` (see `config.example.yaml`). The loop reads
 | `teacher.device` | `uma`: torch device. |
 | `teacher.dataset` | `extxyz`: pre-labeled dataset path. |
 | `student.*` | NN-MTP hyperparameters (radial basis, r_max, hidden dims, ZBL, epochs). |
+| `student.select_energy_scale`, `student.select_force_scale` | The kept model minimizes validation E_MAE/energy_scale + F_MAE/force_scale (defaults 1.0 meV/atom, 10.0 meV/A). |
 | `al_loop.target_ps` | Student MD stability target (ps). |
 | `al_loop.no_progress_limit` | Stop after this many rounds without crash-time gain. |
 | `al_loop.max_iter` | Hard backstop on AL rounds. |

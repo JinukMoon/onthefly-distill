@@ -54,6 +54,14 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 EP_TOTAL = int(os.environ.get("STUDENT_EPOCHS", str(_student.get("epochs", 300))))
 MIN_DELTA = float(os.environ.get("STUDENT_MIN_DELTA", "0.5"))   # meV/A; min F_MAE gain to reset early-stop patience
 
+# The kept model is the one with the lowest E_MAE/SELECT_E_SCALE + F_MAE/SELECT_F_SCALE on the
+# validation split, not the lowest F_MAE alone: training weights forces far above energies, so
+# the energy error swings by several x between force-equivalent checkpoints and a force-only
+# pick can keep one with a much worse energy. Early-stop patience still follows F_MAE.
+# SELECT_E_SCALE=inf restores the force-only pick.
+SELECT_E_SCALE = float(os.environ.get("STUDENT_SELECT_E_SCALE", str(_student.get("select_energy_scale", 1.0))))   # meV/atom
+SELECT_F_SCALE = float(os.environ.get("STUDENT_SELECT_F_SCALE", str(_student.get("select_force_scale", 10.0))))   # meV/A
+
 
 def train(xyz_path, out_prefix):
     cache_path = out_prefix + ".cache.pt"
@@ -152,7 +160,7 @@ def train(xyz_path, out_prefix):
     patience_limit = (common.PATIENCE // 2) if warm else common.PATIENCE
     _lr = common.STAGE1_LR * (0.5 if warm else 1.0)
 
-    best_f, best_f_patience, best_state = float("inf"), float("inf"), None
+    best_score, best_e, best_f, best_f_patience, best_state = float("inf"), None, None, float("inf"), None
     t0 = time.time()
     opt = torch.optim.Adam(model.parameters(), lr=_lr)
     wu = int(ep_total * 0.2)
@@ -160,7 +168,8 @@ def train(xyz_path, out_prefix):
         opt, lambda e: (e + 1) / max(wu, 1) if e < wu
         else max(0.01, 1 - (e - wu) / max(ep_total - wu, 1)))
 
-    print(f"\nForce-focused stage ({ep_total} ep, patience={patience_limit}, warm={warm})", flush=True)
+    print(f"\nForce-focused stage ({ep_total} ep, patience={patience_limit}, warm={warm}); "
+          f"kept model = min E/{SELECT_E_SCALE:g} + F/{SELECT_F_SCALE:g}", flush=True)
     patience_counter = 0
     for ep in range(ep_total):
         model.train()
@@ -174,13 +183,15 @@ def train(xyz_path, out_prefix):
         if (ep + 1) % common.LOG_EVERY == 0 or ep == ep_total - 1:
             e_mae, f_mae = common.validate(model, val_loader, DEVICE)
             tag = ""
-            if f_mae < best_f:                          # keep best model on ANY improvement
-                best_f = f_mae
+            score = e_mae / SELECT_E_SCALE + f_mae / SELECT_F_SCALE
+            if score < best_score:                      # keep best model on ANY improvement
+                best_score, best_e, best_f = score, e_mae, f_mae
                 best_state = copy.deepcopy(model.state_dict())
+                tag = " (kept)"
             if f_mae < best_f_patience - MIN_DELTA:      # reset patience only on SIGNIFICANT gain
                 best_f_patience = f_mae
                 patience_counter = 0
-                tag = " *best*"
+                tag += " *best*"
             else:
                 patience_counter += common.LOG_EVERY
             print(f"  Ep {ep+1:4d}/{ep_total}: E={e_mae:.1f} F={f_mae:.2f} p={patience_counter}{tag}",
@@ -193,11 +204,15 @@ def train(xyz_path, out_prefix):
     if best_state:
         model.load_state_dict(best_state)
     torch.save({"model_state_dict": model.state_dict(), "model_config": CONFIG,
-                "best_force_mae": best_f, "training_time_s": training_time,
+                "best_force_mae": best_f, "best_energy_mae": best_e,
+                "selection": {"score": best_score, "energy_scale": SELECT_E_SCALE,
+                              "force_scale": SELECT_F_SCALE},
+                "training_time_s": training_time,
                 "n_params": n_params, "system": "student",
                 "source_xyz": xyz_path}, model_pt)
     common.export_v1(model, CONFIG, model_bin)
-    print(f"\nbest F_MAE: {best_f:.2f} meV/A  in {training_time:.0f}s", flush=True)
+    if best_state:
+        print(f"\nkept model: E_MAE {best_e:.2f} meV/atom, F_MAE {best_f:.2f} meV/A  in {training_time:.0f}s", flush=True)
     print(f"saved: {model_pt}", flush=True)
     print(f"saved: {model_bin}", flush=True)
 

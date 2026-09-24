@@ -36,6 +36,8 @@ student:
   zbl_r_outer: 3.0
   nu_max: 2
   epochs: 300
+  select_energy_scale: 1.0                # meV/atom; kept model = min E_MAE/this + F_MAE/select_force_scale
+  select_force_scale: 10.0                # meV/A; set select_energy_scale to .inf for a force-only pick
 
 al_loop:
   target_ps: 100000                        # student MD stability target (ps)
